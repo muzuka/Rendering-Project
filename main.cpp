@@ -28,14 +28,15 @@
 
 #ifdef __APPLE__
 #include <OpenGL/gl.h>
+#include <OpenGL/glext.h>
 #include <glut/glut.h>
 #else
 #define FREEGLUT_STATIC
 #include <GL/gl.h>
+#include <GL/glext.h>
 #include <GL/glut.h>
 #endif
 
-#include <OpenGL/glext.h>
 #include <fstream>
 #include <vector>
 #include <string>
