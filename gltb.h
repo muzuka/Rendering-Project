@@ -1,3 +1,5 @@
+#pragma once
+
 /* 
  *  Simple trackball-like motion adapted (ripped off) from projtex.c
  *  (written by David Yu and David Blythe).  See the SIGGRAPH '96
@@ -76,7 +78,7 @@
 
 /* functions */
 void
-gltbInit(int button);
+gltbInit(GLuint button);
 
 void
 gltbMatrix(void);
