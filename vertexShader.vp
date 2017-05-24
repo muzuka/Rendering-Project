@@ -1,0 +1,23 @@
+// vertex shader
+// Written by: Sean Brown
+#version 120
+#extension GL_ARB_gpu_shader5 : enable
+
+uniform float coefficient;
+uniform float percentFactor;
+
+void main() {
+
+	vec3 cameraPos = vec3(0.0, 0.0, 0.0);
+	
+	vec4 position4 = gl_ModelViewMatrix * gl_Vertex;
+	vec3 position3 = position4.xyz/position4.w;
+	
+	float distance = length(-position4)/percentFactor;
+	
+	float pointSize = sqrt(1/(coefficient*distance*distance));
+	gl_PointSize = pointSize;
+
+	gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
+
+}
