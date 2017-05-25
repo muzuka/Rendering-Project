@@ -1,6 +1,7 @@
 LIBDIRS = -L/opt/X11/lib
 INCDIRS = -I/opt/X11/include -I/opt/X11/include/GL
 
+MAIN = main
 CC = g++
 CFLAGS = -Wall -g $(INCDIRS)
 BASELIBS = -lX11 -lGLU
