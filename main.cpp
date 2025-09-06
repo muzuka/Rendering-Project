@@ -26,27 +26,22 @@
  * UCID: 10062604
  */
 
+
+
 #ifdef __APPLE__
+#include <OpenGL/glew.h>
 #include <OpenGL/gl.h>
-#include <OpenGL/glext.h>
-#include <glut/glut.h>
 #else
 #define FREEGLUT_STATIC
 #include <GL/glew.h>
 #include <GL/gl.h>
-#include <GL/freeglut.h>
 #endif
 
-#include <fstream>
 #include <vector>
-#include <string>
-#include <string.h>
-#include <stdlib.h>
 #include <algorithm>
 #include <stdio.h>
-#include <math.h>
 #include "Vector.h"
-#include "PixelMap.h"
+#include "PixelMap.h" // <-- Includes freeglut
 #include "Point.h"
 #include "gltb.h"
 
@@ -136,11 +131,18 @@ bool pointCompare(Point a, Point b) {
 //#############################################################################
 GLuint loadShader(const char * fragment_shader, const char * vertex_shader)
 {
+	printf("GL version: %s\n", glGetString(GL_VERSION));
+	if (!glCreateShader) {
+		fprintf(stderr, "glCreateShader is NULL (loader not initialized / no context)\n");
+		return 1;
+	}
 	
 	int vertexShaderID = glCreateShader(GL_VERTEX_SHADER);
 	int fragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
 	
 	string Line;
+	int Result = GL_FALSE;
+	int InfoLogLength;
 	
 	string VertexShaderCode;
 	ifstream VertexShaderStream(vertex_shader, ios::in);
@@ -159,9 +161,6 @@ GLuint loadShader(const char * fragment_shader, const char * vertex_shader)
 			FragmentShaderCode += "\n" + Line;
 		FragmentShaderStream.close();
 	}
-	
-	int Result = GL_FALSE;
-	int InfoLogLength;
 	
 	// Compile Vertex Shader
 	printf("Compiling shader : %s\n", vertex_shader);
@@ -240,13 +239,19 @@ void loadPoints() {
 
 // Call once before glut loop
 void init() {
+
+	glewExperimental = GL_TRUE;           // needed on many drivers/profiles
+	if (glewInit() != GLEW_OK) {
+		fprintf(stderr, "GLEW init failed\n");
+		return;
+	}
+
 	loadPoints();
 	
 	numOfPoints = cloud.size();
 	printf("%d points\n", numOfPoints);
 	
 	glEnable(GL_DEPTH_TEST);
-	
 	
 	gltbInit(GLUT_LEFT_BUTTON);
 	
