@@ -32,9 +32,9 @@
 #include <glut/glut.h>
 #else
 #define FREEGLUT_STATIC
+#include <GL/glew.h>
 #include <GL/gl.h>
-#include <GL/glext.h>
-#include <GL/glut.h>
+#include <GL/freeglut.h>
 #endif
 
 #include <fstream>
@@ -69,6 +69,9 @@
 using namespace std;
 
 vector<Point> cloud;
+vector<GLuint> vaos;
+vector<GLuint> vbos;
+vector<GLuint> ebos;
 
 GLfloat width       = 800.0;
 GLfloat height      = 600.0;
@@ -87,7 +90,7 @@ GLfloat directionY = -678.86;
 GLfloat directionZ = -1770.98;
 
 GLuint  gradientID           = ONE_GRADIENT;
-GLuint  backgroundColorID    = BLACK_BACKGROUND;
+GLuint	backgroundColorID    = BLACK_BACKGROUND;
 GLfloat clearColorRedVal     = 0.0;
 GLfloat clearColorGreenVal   = 0.0;
 GLfloat clearColorBlueVal    = 0.0;
@@ -123,7 +126,7 @@ void splitString(char* parts[], char* target, const char* delim) {
 }
 
 bool pointCompare(Point a, Point b) {
-	return a.getDistance() < b.getDistance();
+	return a.distance < b.distance;
 }
 
 //#############################################################################
@@ -134,8 +137,8 @@ bool pointCompare(Point a, Point b) {
 GLuint loadShader(const char * fragment_shader, const char * vertex_shader)
 {
 	
-	GLuint vertexShaderID = glCreateShader(GL_VERTEX_SHADER);
-	GLuint fragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
+	int vertexShaderID = glCreateShader(GL_VERTEX_SHADER);
+	int fragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
 	
 	string Line;
 	
@@ -157,7 +160,7 @@ GLuint loadShader(const char * fragment_shader, const char * vertex_shader)
 		FragmentShaderStream.close();
 	}
 	
-	GLint Result = GL_FALSE;
+	int Result = GL_FALSE;
 	int InfoLogLength;
 	
 	// Compile Vertex Shader
@@ -244,6 +247,7 @@ void init() {
 	
 	glEnable(GL_DEPTH_TEST);
 	
+	
 	gltbInit(GLUT_LEFT_BUTTON);
 	
 	pix[0].readBMPFile("textures/WhiteCloud.bmp");
@@ -256,17 +260,34 @@ void init() {
 
 // renders all points in sequence
 void renderGroupOfPoints(int begin, int end) {
-	glBegin(GL_POINTS);
-	for (int i = begin; i < end; i++) {
-		glVertex3f(cloud[i].getX(), cloud[i].getY(), cloud[i].getZ());
-	}
-	glEnd();
+	vaos.push_back(0);
+	vbos.push_back(0);
+	ebos.push_back(0);
+
+	glGenVertexArrays(1, &vaos[vaos.size() - 1]);
+	glGenBuffers(1, &vbos[vbos.size() - 1]);
+	glGenBuffers(1, &ebos[ebos.size() - 1]);
+
+	glBindVertexArray(vaos[vaos.size() - 1]);
+	glBindBuffer(GL_ARRAY_BUFFER, vbos[vbos.size() - 1]);
+
+	glBufferData(GL_ARRAY_BUFFER, sizeof(Point) * (end - begin), &cloud[begin], GL_STATIC_DRAW);
+
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_TRUE,
+		sizeof(Point), (void*)offsetof(Point, x));
+	glBindVertexArray(vaos[vaos.size() - 1]);
+	glDrawArrays(GL_POINTS, begin, end - begin);
 }
 
 // renders points based on gradient divide
 void renderPoints() {
 	int secondStep, thirdStep, fourthStep;
 	int halfOfPoints, thirdOfPoints, fifthOfPoints;
+
+	vaos = vector<GLuint>();
+	vbos = vector<GLuint>();
+	ebos = vector<GLuint>();
 	
 	switch (gradientID) {
 		case 0:
@@ -343,9 +364,9 @@ void RenderScene(void) {
 	
 	// update the distances
 	for (int i = 0; i < (int)numOfPoints; i++) {
-		currentVertex[0] = cloud[i].getX();
-		currentVertex[1] = cloud[i].getY();
-		currentVertex[2] = cloud[i].getZ();
+		currentVertex[0] = cloud[i].x;
+		currentVertex[1] = cloud[i].y;
+		currentVertex[2] = cloud[i].z;
 		currentVertex[3] = 1.0;
 		Vector::multiply4Matrix_4Vector(modelview, currentVertex, finalVertex);
 		newDistance = Vector::length(finalVertex);
