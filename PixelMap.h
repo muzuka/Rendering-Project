@@ -9,23 +9,22 @@
 //
 //#############################################################################
 
-//#############################################################################
-//	Headers
-//#############################################################################
-
 #include "Pixel.h"
 
-//#############################################################################
-//	Global definitions
-//#############################################################################
+#include <string>
+#include <iostream>
+#include <fstream>
+
+#ifdef __APPLE__
+#include <glut/glut.h>
+#else
+#define FREEGLUT_STATIC
+#include <GL/freeglut.h>
+#endif
 
 typedef unsigned char  uchar;
 typedef unsigned short ushort;
 typedef unsigned long  ulong;
-
-//#############################################################################
-//	Global declarations
-//#############################################################################
 
 class PixelMap
 {
@@ -38,6 +37,9 @@ private:
 
 	// Table of color quantization
 	Component *m_quantize;
+
+	std::fstream inf;  // global in this file for convenience
+	std::fstream outf; // ditto
 	
 public:
 
@@ -46,14 +48,13 @@ public:
 	// destructor
 	~PixelMap();
 	// read BMP file into this pixmap
-	int readBMPFile(string fname); 
+	int readBMPFile(std::string fname); 
+
+	ushort getShort();
+	ulong getLong();
 
 	//
 	void makeCheckerBoard();
 	//
 	void setTexture(GLuint textureName);
 }; 
-
-//#############################################################################
-//	End
-//#############################################################################

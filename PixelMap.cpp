@@ -5,59 +5,10 @@
 //
 //#############################################################################
 
-//#############################################################################
-//	Description of implementation
-//#############################################################################
-
-//#############################################################################
-//	Headers
-//#############################################################################
 #include "PixelMap.h"
 
-#ifdef _MSC_VER
-#include <string>
-#include <iostream>
-#include <fstream>
-#include <strstream>
-using namespace std;
-#else
-#include <iostream>
-#include <cstdlib>
-#include <fstream>
-#include <string>
-#include <strstream>
-#include <cstdio>
-#include <algorithm>
-using namespace std;
-#endif
-
-#include <math.h>
-#ifdef __APPLE__
-#include <glut/glut.h>
-#else
-#define FREEGLUT_STATIC
-#include <GL/freeglut.h>
-#endif
-
-//#############################################################################
-//	Local declarations
-//#############################################################################
-
-fstream inf;  // global in this file for convenience
-fstream outf; // ditto
-
-//#############################################################################
-//	Local definitions
-//#############################################################################
-
-//#############################################################################
-// Constructor for class
-//#############################################################################
 PixelMap::PixelMap() { m_rows = m_cols = 0; m_pixel = 0; m_quantize = 0; }
 
-//#############################################################################
-// Destructor for class
-//#############################################################################
 PixelMap::~PixelMap()
 {
 	delete []m_pixel;
@@ -68,10 +19,10 @@ PixelMap::~PixelMap()
 }
 
 //#############################################################################
-//	Read BMP file into this pixmap
+//	Read BMP file into this pixelmap
 //#############################################################################
 
-ushort getShort()
+ushort PixelMap::getShort()
 {// read a short in little-endian form
 	char ic;
 	ushort ip;
@@ -79,7 +30,7 @@ ushort getShort()
 	inf.get(ic);  ip |= ((ushort)ic << 8); // or in high order byte
 	return ip;
 }
-ulong getLong()
+ulong PixelMap::getLong()
 {  // get little-endian 4-byte value from file, compose along portably
 	ulong ip = 0;
 	char ic = 0;
@@ -91,11 +42,11 @@ ulong getLong()
 	return ip;
 }
 
-int PixelMap:: readBMPFile(string fname) 
+int PixelMap:: readBMPFile(std::string fname) 
 {  // Read into memory an Pixel image from an uncompressed BMP file.
 	// return 0 on failure, 1 on success
-	inf.open(fname.c_str(), ios::in|ios::binary); //must read raw binary char's.
-	if(!inf){ cout << " can't open file: " << fname << endl; return 0;}
+	inf.open(fname.c_str(), std::ios::in| std::ios::binary); //must read raw binary char's.
+	if(!inf){ std::cout << " can't open file: " << fname << std::endl; return 0;}
 	int k, row, col, numPadBytes, nBytesInRow;
 	// read header information
 	char ch1, ch2;
@@ -117,14 +68,14 @@ int PixelMap:: readBMPFile(string fname)
 	ulong numLUTentries = getLong();   // 256 for 8 bit, otherwise 0 
 	ulong impColors = 	getLong();      // always 0 
 
-	if(bitsPerPix != 24) {cout << "not a 24 bit/pixelimage!\n"; inf.close(); return 0;}; // error!
+	if(bitsPerPix != 24) { std::cout << "not a 24 bit/pixelimage!\n"; inf.close(); return 0;}; // error!
 	// in BMP file, pad bytes inserted at end of each row so total number is a mult. of 4
 	nBytesInRow = ((3 * numCols + 3)/4) * 4; // round up 3*numCols to next mult. of 4
 	numPadBytes = nBytesInRow - 3 * numCols; // need this many
 	m_rows = numRows; // set class's data members
     m_cols = numCols;
-	cout << "numRows,numCols = " << numRows << "," << numCols << endl;
-	cout.flush();
+	std::cout << "numRows,numCols = " << numRows << "," << numCols << std::endl;
+	std::cout.flush();
 	m_pixel = new Pixel[m_rows * m_cols]; //space for array in memory
 	if(!m_pixel) return 0; // out of memory!
 	long count = 0;
@@ -144,9 +95,6 @@ int PixelMap:: readBMPFile(string fname)
 	return 1; // success
 }
 
-//#############################################################################
-//	
-//#############################################################################
 void PixelMap::makeCheckerBoard()
 {
 	m_rows = m_cols = 64;
@@ -161,9 +109,7 @@ void PixelMap::makeCheckerBoard()
 			m_pixel[count++].set_b(0);
 		}
 }
-//#############################################################################
-//
-//#############################################################################
+
 void PixelMap::setTexture(GLuint textureName)
 {
 	glBindTexture(GL_TEXTURE_2D, textureName);
@@ -173,7 +119,3 @@ void PixelMap::setTexture(GLuint textureName)
 		         0, GL_RGB, m_cols, m_rows, 
 				 0, GL_RGB, GL_UNSIGNED_BYTE, m_pixel);
 }
-
-//#############################################################################
-//	End
-//#############################################################################
