@@ -10,13 +10,11 @@
 #include <math.h>
 
 // Basically just a container
-class Point {
-	private:
+struct Point {
 		float x, y, z;
 		float size;
 		float distance;
 		
-	public:
 		Point(float x, float y, float z, float size) {
 			this->x = x;
 			this->y = y;
@@ -24,12 +22,6 @@ class Point {
 			this->size = size;
 			this->distance = 0.0;
 		}
-			
-		float getX()			{return x;}
-		float getY()			{return y;}
-		float getZ()			{return z;}
-		float getSize()			{return size;}
-		float getDistance() 	{return distance;}
 	
 		void setDistance(float distance) {this->distance = distance;}
 		
