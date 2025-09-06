@@ -14,6 +14,31 @@
 //#############################################################################
 #include "PixelMap.h"
 
+#ifdef _MSC_VER
+#include <string>
+#include <iostream>
+#include <fstream>
+#include <strstream>
+using namespace std;
+#else
+#include <iostream>
+#include <cstdlib>
+#include <fstream>
+#include <string>
+#include <strstream>
+#include <cstdio>
+#include <algorithm>
+using namespace std;
+#endif
+
+#include <math.h>
+#ifdef __APPLE__
+#include <glut/glut.h>
+#else
+#define FREEGLUT_STATIC
+#include <GL/freeglut.h>
+#endif
+
 //#############################################################################
 //	Local declarations
 //#############################################################################

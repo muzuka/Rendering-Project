@@ -13,30 +13,6 @@
 //	Headers
 //#############################################################################
 
-#ifdef _MSC_VER
-#include <string>
-#include <iostream>
-#include <fstream>
-#include <strstream>
-using namespace std;
-#else
-#include <iostream>
-#include <cstdlib>
-#include <fstream>
-#include <string>
-#include <strstream>
-#include <cstdio>
-#include <algorithm>
-#include <math.h>
-using namespace std;
-#endif
-
-#ifdef __APPLE__
-#include <glut/glut.h>
-#else
-#define FREEGLUT_STATIC
-#include <GL/glut.h>
-#endif
 #include "Pixel.h"
 
 //#############################################################################

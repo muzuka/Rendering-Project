@@ -12,7 +12,7 @@
 #include <glut/glut.h>
 #else
 #define FREEGLUT_STATIC
-#include <GL/glut.h>
+#include <GL/freeglut.h>
 #endif
 #include "gltb.h"
 
