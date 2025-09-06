@@ -40,7 +40,8 @@
 #include <vector>
 #include <algorithm>
 #include <stdio.h>
-#include "Vector.h"
+#include "VectorUtils.h"
+#include "MatrixUtils.h"
 #include "PixelMap.h" // <-- Includes freeglut
 #include "Point.h"
 #include "gltb.h"
@@ -373,8 +374,8 @@ void RenderScene(void) {
 		currentVertex[1] = cloud[i].y;
 		currentVertex[2] = cloud[i].z;
 		currentVertex[3] = 1.0;
-		Vector::multiply4Matrix_4Vector(modelview, currentVertex, finalVertex);
-		newDistance = Vector::length(finalVertex);
+		MatrixUtils::multiply4Matrix_4Vector(modelview, currentVertex, finalVertex);
+		newDistance = VectorUtils::length(finalVertex);
 		cloud[i].setDistance(newDistance);
 	}
 	
