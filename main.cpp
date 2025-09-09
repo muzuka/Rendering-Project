@@ -32,7 +32,6 @@
 #include <OpenGL/glew.h>
 #include <OpenGL/gl.h>
 #else
-#define FREEGLUT_STATIC
 #include <GL/glew.h>
 #include <GL/gl.h>
 #endif
@@ -65,13 +64,12 @@
 using namespace std;
 
 vector<Point> cloud;
-vector<GLuint> vaos;
-vector<GLuint> vbos;
-vector<GLuint> ebos;
+unsigned int vao;
+unsigned int vbo;
 
 GLfloat width       = 800.0;
 GLfloat height      = 600.0;
-GLfloat nearPlane   = 1.0;
+GLfloat nearPlane = 1.0;
 GLfloat farPlane    = 5000.0;
 GLfloat fieldOfView = 60.0;
 
@@ -121,9 +119,14 @@ void splitString(char* parts[], char* target, const char* delim) {
 	}
 }
 
+// sorting comparator
 bool pointCompare(Point a, Point b) {
 	return a.distance < b.distance;
 }
+
+//#############################################################################
+//  OpenGL initialization
+//#############################################################################
 
 //#############################################################################
 //  load a shader file into opengl
@@ -147,15 +150,17 @@ GLuint loadShader(const char * fragment_shader, const char * vertex_shader)
 	
 	string VertexShaderCode;
 	ifstream VertexShaderStream(vertex_shader, ios::in);
+
+	string FragmentShaderCode;
+	ifstream FragmentShaderStream(fragment_shader, ios::in);
+
 	if(VertexShaderStream.is_open()) {
 		Line = "";
 		while(getline(VertexShaderStream, Line))
 			VertexShaderCode += "\n" + Line;
 		VertexShaderStream.close();
 	}
-	
-	string FragmentShaderCode;
-	ifstream FragmentShaderStream(fragment_shader, ios::in);
+
 	if(FragmentShaderStream.is_open()) {
 		Line = "";
 		while(getline(FragmentShaderStream, Line))
@@ -172,9 +177,9 @@ GLuint loadShader(const char * fragment_shader, const char * vertex_shader)
 	// Check Vertex Shader
 	glGetShaderiv(vertexShaderID, GL_COMPILE_STATUS, &Result);
 	glGetShaderiv(vertexShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-	vector<char> VertexShaderErrorMessage(InfoLogLength);
-	glGetShaderInfoLog(vertexShaderID, InfoLogLength, NULL, &VertexShaderErrorMessage[0]);
-	fprintf(stdout, "%s\n", &VertexShaderErrorMessage[0]);
+	char* VertexShaderErrorMessage = new char[InfoLogLength];
+	glGetShaderInfoLog(vertexShaderID, InfoLogLength, NULL, VertexShaderErrorMessage);
+	fprintf(stdout, "%s\n", VertexShaderErrorMessage);
 	
 	// Compile Fragment Shader
 	printf("Compiling shader : %s\n", fragment_shader);
@@ -185,9 +190,9 @@ GLuint loadShader(const char * fragment_shader, const char * vertex_shader)
 	// Check Fragment Shader
 	glGetShaderiv(fragmentShaderID, GL_COMPILE_STATUS, &Result);
 	glGetShaderiv(fragmentShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-	vector<char> FragmentShaderErrorMessage(InfoLogLength);
-	glGetShaderInfoLog(fragmentShaderID, InfoLogLength, NULL, &FragmentShaderErrorMessage[0]);
-	fprintf(stdout, "%s\n", &FragmentShaderErrorMessage[0]);
+	char* FragmentShaderErrorMessage = new char[InfoLogLength];
+	glGetShaderInfoLog(fragmentShaderID, InfoLogLength, NULL, FragmentShaderErrorMessage);
+	fprintf(stdout, "%s\n", FragmentShaderErrorMessage);
 	
 	// link program
 	fprintf(stdout, "Linking program\n");
@@ -198,9 +203,9 @@ GLuint loadShader(const char * fragment_shader, const char * vertex_shader)
 	
 	glGetProgramiv(ProgramID, GL_LINK_STATUS, &Result);
 	glGetProgramiv(ProgramID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-	vector<char> ProgramErrorMessage(max(InfoLogLength, int(1)));
-	glGetProgramInfoLog(ProgramID, InfoLogLength, NULL, &ProgramErrorMessage[0]);
-	fprintf(stdout, "%s\n", &ProgramErrorMessage[0]);
+	char* ProgramErrorMessage = new char[max(InfoLogLength, int(1))];
+	glGetProgramInfoLog(ProgramID, InfoLogLength, NULL, ProgramErrorMessage);
+	fprintf(stdout, "%s\n", ProgramErrorMessage);
 	
 	glDeleteShader(vertexShaderID);
 	glDeleteShader(fragmentShaderID);
@@ -221,6 +226,7 @@ void loadPoints() {
 		
 	char* data[5];
 	string line;
+	cloud = vector<Point>();
 		
 	while(getline(in, line)) {
 		if(line[0] == '#') {
@@ -236,7 +242,6 @@ void loadPoints() {
 	}
 	in.close();
 }
-
 
 // Call once before glut loop
 void init() {
@@ -264,87 +269,48 @@ void init() {
 	gluPerspective(fieldOfView, height/width, nearPlane, farPlane);
 }
 
-// renders all points in sequence
-void renderGroupOfPoints(int begin, int end) {
-	vaos.push_back(0);
-	vbos.push_back(0);
-	ebos.push_back(0);
-
-	glGenVertexArrays(1, &vaos[vaos.size() - 1]);
-	glGenBuffers(1, &vbos[vbos.size() - 1]);
-	glGenBuffers(1, &ebos[ebos.size() - 1]);
-
-	glBindVertexArray(vaos[vaos.size() - 1]);
-	glBindBuffer(GL_ARRAY_BUFFER, vbos[vbos.size() - 1]);
-
-	glBufferData(GL_ARRAY_BUFFER, sizeof(Point) * (end - begin), &cloud[begin], GL_STATIC_DRAW);
-
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_TRUE,
-		sizeof(Point), (void*)offsetof(Point, x));
-	glBindVertexArray(vaos[vaos.size() - 1]);
-	glDrawArrays(GL_POINTS, begin, end - begin);
-}
+//#############################################################################
+//  Point cloud initialization
+//#############################################################################
 
 // renders points based on gradient divide
 void renderPoints() {
 	int secondStep, thirdStep, fourthStep;
 	int halfOfPoints, thirdOfPoints, fifthOfPoints;
 
-	vaos = vector<GLuint>();
-	vbos = vector<GLuint>();
-	ebos = vector<GLuint>();
-	
-	switch (gradientID) {
-		case 0:
-			glBindTexture(GL_TEXTURE_2D, 2000);
-			renderGroupOfPoints(0, (int)numOfPoints);
-			break;
-		case 1:
-			halfOfPoints = (int)numOfPoints / twoColorDivide;
-			
-			glBindTexture(GL_TEXTURE_2D, 2000);
-			renderGroupOfPoints(0, halfOfPoints);
-			
-			glBindTexture(GL_TEXTURE_2D, 2001);
-			renderGroupOfPoints(halfOfPoints + 1, (int)numOfPoints);
-			break;
-		case 2:
-			thirdOfPoints = (int)numOfPoints / (twoColorDivide + 1);
-			secondStep = thirdOfPoints * 2;
-			
-			glBindTexture(GL_TEXTURE_2D, 2000);
-			renderGroupOfPoints(0, thirdOfPoints);
-			
-			glBindTexture(GL_TEXTURE_2D, 2001);
-			renderGroupOfPoints(thirdOfPoints + 1, secondStep);
-			
-			glBindTexture(GL_TEXTURE_2D, 2002);
-			renderGroupOfPoints(secondStep + 1, (int)numOfPoints);
-			break;
-		case 3:
-			fifthOfPoints = (int)numOfPoints / (twoColorDivide + 3);
-			secondStep = fifthOfPoints * 2;
-			thirdStep = fifthOfPoints * 3;
-			fourthStep = fifthOfPoints * 4;
-			
-			glBindTexture(GL_TEXTURE_2D, 2000);
-			renderGroupOfPoints(0, fifthOfPoints);
-			
-			glBindTexture(GL_TEXTURE_2D, 2001);
-			renderGroupOfPoints(fifthOfPoints + 1, secondStep);
-			
-			glBindTexture(GL_TEXTURE_2D, 2002);
-			renderGroupOfPoints(secondStep + 1, thirdStep);
-			
-			glBindTexture(GL_TEXTURE_2D, 2003);
-			renderGroupOfPoints(thirdStep + 1, fourthStep);
-			
-			glBindTexture(GL_TEXTURE_2D, 2004);
-			renderGroupOfPoints(fourthStep + 1, (int)numOfPoints);
-			break;
-		default:
-			break;
+	if (cloud.empty())
+	{
+		fprintf(stderr, "Error: No points to render!\n");
+		return;
+	}
+
+	glGenVertexArrays(1, &vao);
+	glBindVertexArray(vao);
+	glGenBuffers(1, &vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(Point) * cloud.size(), cloud.data(), GL_STATIC_DRAW);
+
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Point), (void*)offsetof(Point, x));
+	glBindVertexArray(vao);
+
+	int step = numOfPoints / (gradientID + 1);
+	int textureID = 2000;
+
+	if (gradientID == 0)
+	{
+		glBindTexture(GL_TEXTURE_2D, textureID);
+		glDrawArrays(GL_POINTS, 0, numOfPoints);
+	}
+	else
+	{
+		for (int i = 0; i < gradientID + 1; i++)
+		{
+			int minStep = step * i;
+			glBindTexture(GL_TEXTURE_2D, textureID);
+			glDrawArrays(GL_POINTS, minStep, minStep + step);
+			textureID++;
+		}
 	}
 }
 
@@ -408,6 +374,10 @@ void RenderScene(void) {
 	glutSwapBuffers();
 	glutPostRedisplay(); // Redraw
 }
+
+//#############################################################################
+//  Menu functions
+//#############################################################################
 
 void ChangeSize(int width, int height) {
     gltbReshape(width, height);
