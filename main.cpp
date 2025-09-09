@@ -39,6 +39,7 @@
 #include <vector>
 #include <algorithm>
 #include <stdio.h>
+#include <sstream>
 #include "VectorUtils.h"
 #include "MatrixUtils.h"
 #include "PixelMap.h" // <-- Includes freeglut
@@ -128,6 +129,63 @@ bool pointCompare(Point a, Point b) {
 //  OpenGL initialization
 //#############################################################################
 
+string readFileText(const char* path) {
+	ifstream f(path, ios::binary);
+	if (!f)
+		throw runtime_error(string("Failed to open file: ") + path);
+
+	stringstream ss;
+	ss << f.rdbuf();
+	return ss.str();
+}
+
+GLuint compileShader(GLenum type, const char* path) {
+	string src;
+
+	try {
+		src = readFileText(path);
+	}
+	catch (const exception& e) {
+		fprintf(stderr, "Shader error: %s", e.what());
+		return 0;
+	}
+	if (src.empty()) {
+		fprintf(stderr, "Shader error: File empty");
+	}
+
+	GLuint sh = glCreateShader(type);
+	if (!sh) {
+		fprintf(stderr, "glCreateShader failed for %s\n", path);
+		return 0;
+	}
+
+	const char* cstr = src.c_str();
+	GLint len = static_cast<GLint>(src.size());
+	glShaderSource(sh, 1, &cstr, &len);   // pass explicit length
+	glCompileShader(sh);
+
+	GLint ok = GL_FALSE, logLen = 0;
+	glGetShaderiv(sh, GL_COMPILE_STATUS, &ok);
+	glGetShaderiv(sh, GL_INFO_LOG_LENGTH, &logLen);
+
+	if (logLen > 1) {
+		std::vector<GLchar> log(logLen);
+		GLsizei written = 0;
+		glGetShaderInfoLog(sh, logLen, &written, log.data());
+		std::fprintf(stderr, "[%s] %.*s\n",
+			(type == GL_VERTEX_SHADER ? "Vertex" :
+				type == GL_FRAGMENT_SHADER ? "Fragment" : "Shader"),
+			(int)written, log.data());
+	}
+
+	if (ok != GL_TRUE) {
+		std::fprintf(stderr, "Compile failed: %s\n", path);
+		glDeleteShader(sh);
+		return 0;
+	}
+	return sh;
+}
+
 //#############################################################################
 //  load a shader file into opengl
 //  This code is from the openGL tutorial:
@@ -135,82 +193,54 @@ bool pointCompare(Point a, Point b) {
 //#############################################################################
 GLuint loadShader(const char * fragment_shader, const char * vertex_shader)
 {
-	printf("GL version: %s\n", glGetString(GL_VERSION));
-	if (!glCreateShader) {
-		fprintf(stderr, "glCreateShader is NULL (loader not initialized / no context)\n");
-		return 1;
+	// Sanity: ensure loader/ctx are alive
+	const GLubyte* ver = glGetString(GL_VERSION);
+	if (!ver) {
+		std::fprintf(stderr, "No GL context (glGetString(GL_VERSION) returned null)\n");
+		return 0;
 	}
-	
-	int vertexShaderID = glCreateShader(GL_VERTEX_SHADER);
-	int fragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
-	
-	string Line;
-	int Result = GL_FALSE;
-	int InfoLogLength;
-	
-	string VertexShaderCode;
-	ifstream VertexShaderStream(vertex_shader, ios::in);
+	std::printf("GL version: %s\n", ver);
 
-	string FragmentShaderCode;
-	ifstream FragmentShaderStream(fragment_shader, ios::in);
+	GLuint vs = compileShader(GL_VERTEX_SHADER, vertex_shader);
+	if (!vs) return 0;
+	GLuint fs = compileShader(GL_FRAGMENT_SHADER, fragment_shader);
+	if (!fs) { glDeleteShader(vs); return 0; }
 
-	if(VertexShaderStream.is_open()) {
-		Line = "";
-		while(getline(VertexShaderStream, Line))
-			VertexShaderCode += "\n" + Line;
-		VertexShaderStream.close();
+	GLuint prog = glCreateProgram();
+	if (!prog) {
+		std::fprintf(stderr, "glCreateProgram failed\n");
+		glDeleteShader(vs); glDeleteShader(fs);
+		return 0;
 	}
 
-	if(FragmentShaderStream.is_open()) {
-		Line = "";
-		while(getline(FragmentShaderStream, Line))
-			FragmentShaderCode += "\n" + Line;
-		FragmentShaderStream.close();
+	glAttachShader(prog, vs);
+	glAttachShader(prog, fs);
+	glLinkProgram(prog);
+
+	GLint ok = GL_FALSE, logLen = 0;
+	glGetProgramiv(prog, GL_LINK_STATUS, &ok);
+	glGetProgramiv(prog, GL_INFO_LOG_LENGTH, &logLen);
+
+	if (logLen > 1) {
+		std::vector<GLchar> log(logLen);
+		GLsizei written = 0;
+		glGetProgramInfoLog(prog, logLen, &written, log.data());
+		std::fprintf(stderr, "[Link] %.*s\n", (int)written, log.data());
 	}
-	
-	// Compile Vertex Shader
-	printf("Compiling shader : %s\n", vertex_shader);
-	char const * VertexSourcePointer = VertexShaderCode.c_str();
-	glShaderSource(vertexShaderID, 1, &VertexSourcePointer, NULL);
-	glCompileShader(vertexShaderID);
-	
-	// Check Vertex Shader
-	glGetShaderiv(vertexShaderID, GL_COMPILE_STATUS, &Result);
-	glGetShaderiv(vertexShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-	char* VertexShaderErrorMessage = new char[InfoLogLength];
-	glGetShaderInfoLog(vertexShaderID, InfoLogLength, NULL, VertexShaderErrorMessage);
-	fprintf(stdout, "%s\n", VertexShaderErrorMessage);
-	
-	// Compile Fragment Shader
-	printf("Compiling shader : %s\n", fragment_shader);
-	char const * FragmentSourcePointer = FragmentShaderCode.c_str();
-	glShaderSource(fragmentShaderID, 1, &FragmentSourcePointer, NULL);
-	glCompileShader(fragmentShaderID);
-	
-	// Check Fragment Shader
-	glGetShaderiv(fragmentShaderID, GL_COMPILE_STATUS, &Result);
-	glGetShaderiv(fragmentShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-	char* FragmentShaderErrorMessage = new char[InfoLogLength];
-	glGetShaderInfoLog(fragmentShaderID, InfoLogLength, NULL, FragmentShaderErrorMessage);
-	fprintf(stdout, "%s\n", FragmentShaderErrorMessage);
-	
-	// link program
-	fprintf(stdout, "Linking program\n");
-	GLuint ProgramID = glCreateProgram();
-	glAttachShader(ProgramID, vertexShaderID);
-	glAttachShader(ProgramID, fragmentShaderID);
-	glLinkProgram(ProgramID);
-	
-	glGetProgramiv(ProgramID, GL_LINK_STATUS, &Result);
-	glGetProgramiv(ProgramID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-	char* ProgramErrorMessage = new char[max(InfoLogLength, int(1))];
-	glGetProgramInfoLog(ProgramID, InfoLogLength, NULL, ProgramErrorMessage);
-	fprintf(stdout, "%s\n", ProgramErrorMessage);
-	
-	glDeleteShader(vertexShaderID);
-	glDeleteShader(fragmentShaderID);
-	
-	return ProgramID;
+
+	// shaders can be detached/deleted after link
+	glDetachShader(prog, vs);
+	glDetachShader(prog, fs);
+	glDeleteShader(vs);
+	glDeleteShader(fs);
+
+	if (ok != GL_TRUE) {
+		std::fprintf(stderr, "Program link failed\n");
+		glDeleteProgram(prog);
+		return 0;
+	}
+
+	return prog;
 }
 
 void loadPoints() {
