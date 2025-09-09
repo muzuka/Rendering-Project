@@ -103,7 +103,7 @@ GLfloat size 				 = 20.0;
 GLfloat zoomStep             = 25.0;
 GLuint  shader_Program;
 
-PixelMap pix[5];
+PixelMap pix[6];
 
 // splits the string "target" into the "parts" array by the "delim" characters
 // note: must know the size of "parts" you will need before calculation
